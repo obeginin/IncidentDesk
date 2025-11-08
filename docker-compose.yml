@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: incidentdesk:v1.0.0
+    image: "${APP_NAME}:${APP_VERSION}"
     container_name: fastapi
     env_file:
       - .env
