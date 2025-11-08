@@ -2,10 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engin
 from sqlalchemy.orm import DeclarativeBase
 from utils.ClassConfig import settings
 import asyncio
-
 from sqlalchemy import text
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):

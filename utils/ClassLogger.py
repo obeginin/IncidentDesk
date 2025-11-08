@@ -2,7 +2,6 @@ from datetime import datetime
 import logging
 from pathlib import Path
 from logging.handlers import TimedRotatingFileHandler
-from typing import Optional, Union
 import json
 import threading
 
@@ -51,8 +50,8 @@ class LoggerConfig:
     _lock = threading.Lock()  # защита от гонок при многопоточном вызове
     def __init__(
         self,
-        base_dir: Optional[Union[str, Path]] = None,
-        log_dir: Optional[Union[str, Path]] = None,
+        base_dir: str | Path | None = None,
+        log_dir: str | Path | None = None,
         log_file: str = "app.log",
         log_level: str = "INFO",
         log_format: str = "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -80,7 +79,7 @@ class LoggerConfig:
         except Exception as e:
             print(f"Не удалось создать директорию для логов {self.log_dir}: {e}")
 
-    def _resolve_log_dir(self, log_dir: Optional[Union[str, Path]] = None) -> Path:
+    def _resolve_log_dir(self, log_dir: str | Path | None = None) -> Path:
         'определям путь к директории для логов'
         project_root = Path(__file__).resolve().parent.parent
         if log_dir is None:
@@ -118,7 +117,7 @@ class LoggerConfig:
             root.setLevel(getattr(logging, self.log_level, logging.INFO))
             logging.info(f"Логирование инициализировано. Запущен файл: {self.app_logger_name} Лог: {log_path}")
 
-    def get_logger(self, name: Optional[str] = None) -> logging.Logger:
+    def get_logger(self, name: str | None = None) -> logging.Logger:
         """Именованный логгер (по умолчанию __name__)"""
         logger = logging.getLogger(name or self.app_logger_name)
         #logger.propagate = False  # избегаем дублирования в root

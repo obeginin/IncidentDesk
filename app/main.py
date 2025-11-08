@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, Depends
 import asyncio
-import aiofiles
 import logging
 import datetime
 
@@ -24,7 +23,7 @@ start_time = datetime.datetime.utcnow()
 error_handler = ErrorHandler(logger)
 
 # Создаём экземпляр для работы с БД и подключаем обработчик ошибок
-queries = DBQueries(error_handler).with_handler()
+queries = DBQueries(error_handler)
 
 
 # Глобальная обработка ошибок FastAPI
@@ -52,12 +51,13 @@ async def startup_event():
 
 @app.get("/api/health", tags=["Health"], summary="Роут проверки состояния сервиса")
 async def health_check(db: AsyncSession = Depends(get_db)):
-    """Проверка состояния сервиса и ключевых зависимостей"""
     status = "healthy"
     try:
         await queries.run_select(db=db, query="SELECT 1", mode="scalar")
-    except Exception:
+        logger.info("DB connection OK")
+    except Exception as e:
         status = "unhealthy"
+        logger.exception("Health check failed")  # ← вот здесь будет трассировка
 
     uptime = (datetime.datetime.utcnow() - start_time).total_seconds()
     return {

@@ -1,9 +1,7 @@
-from fastapi import HTTPException
-from typing import Optional
 
 class AppException(Exception):
     """Базовое исключение приложения с HTTP статусом"""
-    def __init__(self, message: str, status_code: int = 400, field: Optional[str] = None):
+    def __init__(self, message: str, status_code: int = 400, field: str | None = None):
         self.message = message
         self.status_code = status_code
         self.field = field
@@ -14,21 +12,21 @@ class AppException(Exception):
 
 # Примеры стандартных ошибок для удобства
 class BadRequest(AppException):
-    def __init__(self, message: str = "Некорректный запрос", field: Optional[str] = None):
+    def __init__(self, message: str = "Некорректный запрос", field: str | None = None):
         super().__init__(message, status_code=400, field=field)
 
 class Unauthorized(AppException):
-    def __init__(self, message: str = "Пользователь не авторизован", field: Optional[str] = None):
+    def __init__(self, message: str = "Пользователь не авторизован", field: str | None = None):
         super().__init__(message, status_code=401, field=field)
 
 class NotFound(AppException):
-    def __init__(self, message: str = "Ресурс не найден", field: Optional[str] = None):
+    def __init__(self, message: str = "Ресурс не найден", field: str | None = None):
         super().__init__(message, status_code=404, field=field)
 
 class ConflictData(AppException):
-    def __init__(self, message: str = "Конфликт данных", field: Optional[str] = None):
+    def __init__(self, message: str = "Конфликт данных", field: str | None = None):
         super().__init__(message, status_code=409, field=field)
 
 class InternalServerError(AppException):
-    def __init__(self, message: str = "Внутренняя ошибка сервера", field: Optional[str] = None):
+    def __init__(self, message: str = "Внутренняя ошибка сервера", field: str | None = None):
         super().__init__(message, status_code=500, field=field)

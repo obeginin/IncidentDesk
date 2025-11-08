@@ -3,47 +3,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import logging
 from functools import wraps
-from typing import Any, Optional
 from utils.ClassError import AppException
 from utils.ClassException import ErrorHandler
 
 logger = logging.getLogger(__name__)
 error_handler = ErrorHandler(logger)
 
-def db_operation(context: str = "DB", error_handler: Optional[ErrorHandler] = None):
-    """
-    Асинхронный декоратор для обработки ошибок SQLAlchemy/DB.
-    Логирует ошибку через переданный error_handler и выбрасывает AppException.
-    """
+def db_operation(context: str = "DB", error_handler: ErrorHandler | None = None):
     def decorator(func):
         @wraps(func)
-        async def wrapper(*args, **kwargs):
-            db: AsyncSession = kwargs.get("db") or (args[0] if args else None)
+        async def wrapper(self, *args, **kwargs):  # self обязательно
+            db: AsyncSession | None = kwargs.get("db")
+            handler = error_handler or getattr(self, "error_handler", None)
             try:
-                return await func(*args, **kwargs)
+                return await func(self, *args, **kwargs)
             except IntegrityError as e:
                 if db:
                     await db.rollback()
-                if error_handler:
-                    info = await error_handler.handle_client_error(e, context=context)
+                if handler:
+                    info = await handler.handle_client_error(e, context=context)
                     raise AppException(info.message, status_code=400)
                 raise
             except SQLAlchemyError as e:
                 if db:
                     await db.rollback()
-                if error_handler:
-                    info = await error_handler.handle_client_error(e, context=context)
+                if handler:
+                    info = await handler.handle_client_error(e, context=context)
                     raise AppException(info.message, status_code=500)
                 raise
             except Exception as e:
                 if db:
                     await db.rollback()
-                if error_handler:
-                    info = await error_handler.handle_client_error(e, context=context)
+                if handler:
+                    info = await handler.handle_client_error(e, context=context)
                     raise AppException(info.message, status_code=500)
                 raise
         return wrapper
     return decorator
+
 
 
 class DBQueries:
@@ -99,10 +96,3 @@ class DBQueries:
             await db.commit()
         return result.rowcount
 
-    def with_handler(self):
-        """Возвращает новый экземпляр, где error_handler внедрён в декораторы"""
-        for name in dir(self):
-            func = getattr(self, name)
-            if callable(func) and hasattr(func, "__wrapped__"):  # обёрнут декоратором
-                setattr(self, name, db_operation(context=name.upper(), error_handler=self.error_handler)(func.__wrapped__))
-        return self
