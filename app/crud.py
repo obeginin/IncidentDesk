@@ -88,3 +88,21 @@ class IncidentService:
 
         self.logger.info(f"Инцидент обновлён: {incident}")
         return incident
+
+    async def get_error_stats(self, db: AsyncSession) -> dict:
+        """Возвращает статистику инцидентов по статусам"""
+        try:
+            self.logger.info("Запуск функции get_error_stats")
+            query = """
+            SELECT status, COUNT(*) AS count
+            FROM incidents
+            GROUP BY status
+            """
+            rows = await self.queries.run_select(db, query, mode="mappings_all")
+            stats = {row['status']: row['count'] for row in rows}
+
+            self.logger.info(f"Статистика ошибок: {stats}")
+            return stats
+        except Exception as e:
+            await self.queries.error_handler.handle_client_error(e, context="get_error_stats")
+            raise
