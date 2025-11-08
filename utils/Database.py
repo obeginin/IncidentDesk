@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engine, async_sessionmaker # create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.orm import DeclarativeBase
 from utils.ClassConfig import settings
 import asyncio
-from app.models import incident
+
+from sqlalchemy import text
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,11 +54,11 @@ async def check_db_connection(engine: AsyncEngine, name: str, retries: int = 5, 
             logger.info(f"✅ Подключение к базе данных '{name}' установлено.")
             return
         except Exception as e:
-            logger.exception(f"❌ Ошибка подключения к базе '{name}' (Попытка {attempt}/{retries}): {e}")
+            logger.warning(f"⚠️ Ошибка подключения к базе '{name}' (Попытка {attempt}/{retries}): {e}")
             if attempt < retries:
                 await asyncio.sleep(delay* attempt)
             else:
-                logger.critical(f"Не удалось подключиться к базе '{name}' после {retries} попыток.")
+                logger.critical(f"❌ Не удалось подключиться к базе '{name}' после {retries} попыток.")
                 raise
 
 

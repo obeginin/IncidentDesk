@@ -3,7 +3,6 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, computed_field
 
-# TODO то что требовалось перевел на асинхронный postgres, остальное не обязательно так как используется только при стратре приложения ( не критично)
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
