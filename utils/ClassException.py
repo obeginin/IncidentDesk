@@ -61,29 +61,44 @@ class ErrorHandler:
         elif isinstance(e, KeyboardInterrupt):
             info = ErrorInfo("Процесс прерван пользователем", "KeyboardInterrupt", "critical", context)
         else:
-            info = ErrorInfo(f"Непредвиденная ошибка: {type(e).__name__} — {e}", "UnexpectedError", "error", context)
+            info = ErrorInfo(f"Непредвиденная ошибка: {type(e).__name__}", "UnexpectedError", "error", context)
 
-        # логирование
-        getattr(self.logger, info.level, self.logger.error)(f"[{info.context}] {info.message}")
+            # Логируем на сервере полную информацию
+        #getattr(self.logger, info.level, self.logger.error)(f"[{info.context}] {info.message}")
+        self.logger.exception(f"[{context}] {e}")
         return info
-
 
     async def handle_http_exception(self, request: Request, exc: Exception) -> JSONResponse:
         """Обработка ошибок FastAPI / HTTP / валидации"""
         if isinstance(exc, AppException):
+            # Показываем пользователю простое сообщение
             info = ErrorInfo(exc.message, exc.__class__.__name__, "warning", str(request.url))
             status_code = exc.status_code
+            # Логируем полную трассировку, если есть первопричина
+            if getattr(exc, "original_exc", None):
+                self.logger.exception(f"[{request.url}] {exc.message}", exc_info=exc.original_exc)
+            else:
+                self.logger.warning(f"[{request.url}] {exc.message}")
         elif isinstance(exc, StarletteHTTPException):
             info = ErrorInfo(str(exc.detail), "HTTPException", "warning", str(request.url))
             status_code = exc.status_code
+            self.logger.warning(f"[{request.url}] {exc.detail}")
         elif isinstance(exc, RequestValidationError):
             info = ErrorInfo("Ошибка валидации запроса", "ValidationError", "warning", str(request.url))
             status_code = 422
+            self.logger.warning(f"[{request.url}] {exc.errors()}")
         else:
-            info = ErrorInfo(f"Непредвиденная ошибка: {type(exc).__name__} — {exc}", "UnexpectedError", "error", str(request.url))
+            # Непредвиденная ошибка: показываем общую фразу клиенту, логируем полный traceback
+            info = ErrorInfo(
+                "Внутренняя ошибка сервера",
+                "InternalServerError",
+                "error",
+                str(request.url)
+            )
             status_code = 500
+            self.logger.exception(f"[{request.url}] {exc}")  # полная трассировка для разработчика
 
-        # логирование
+        # Логируем для статистики/уровня info
         getattr(self.logger, info.level, self.logger.error)(f"[{info.context}] {info.message}")
 
         return JSONResponse(

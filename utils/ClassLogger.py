@@ -5,6 +5,7 @@ from logging.handlers import TimedRotatingFileHandler
 import json
 import threading
 
+
 class JsonFormatter(logging.Formatter):
     """Json формат логов"""
     def __init__(self):

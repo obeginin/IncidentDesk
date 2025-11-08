@@ -6,38 +6,60 @@ from functools import wraps
 from utils.ClassError import AppException
 from utils.ClassException import ErrorHandler
 
-logger = logging.getLogger(__name__)
-error_handler = ErrorHandler(logger)
 
-def db_operation(context: str = "DB", error_handler: ErrorHandler | None = None):
+logger = logging.getLogger(__name__)
+
+
+def db_operation(context: str = "DB"):
+    """Декоратор для безопасной работы с БД"""
     def decorator(func):
         @wraps(func)
-        async def wrapper(self, *args, **kwargs):  # self обязательно
+        async def wrapper(self, *args, **kwargs):
             db: AsyncSession | None = kwargs.get("db")
-            handler = error_handler or getattr(self, "error_handler", None)
+            handler: ErrorHandler | None = getattr(self, "error_handler", None)
             try:
                 return await func(self, *args, **kwargs)
+
             except IntegrityError as e:
                 if db:
                     await db.rollback()
+                # логируем полную трассировку
                 if handler:
-                    info = await handler.handle_client_error(e, context=context)
-                    raise AppException(info.message, status_code=400)
-                raise
+                    await handler.handle_client_error(e, context=context)
+                else:
+                    self.logger.exception(f"[{context}] IntegrityError")
+                raise AppException(
+                    "Ошибка работы с базой данных (конфликт данных)",
+                    status_code=400,
+                    original_exc=e
+                )
+
             except SQLAlchemyError as e:
                 if db:
                     await db.rollback()
                 if handler:
-                    info = await handler.handle_client_error(e, context=context)
-                    raise AppException(info.message, status_code=500)
-                raise
+                    await handler.handle_client_error(e, context=context)
+                else:
+                    self.logger.exception(f"[{context}] SQLAlchemyError")
+                raise AppException(
+                    "Ошибка работы с базой данных",
+                    status_code=500,
+                    original_exc=e
+                )
+
             except Exception as e:
                 if db:
                     await db.rollback()
                 if handler:
-                    info = await handler.handle_client_error(e, context=context)
-                    raise AppException(info.message, status_code=500)
-                raise
+                    await handler.handle_client_error(e, context=context)
+                else:
+                    self.logger.exception(f"[{context}] UnexpectedError")
+                raise AppException(
+                    "Внутренняя ошибка приложения",
+                    status_code=500,
+                    original_exc=e
+                )
+
         return wrapper
     return decorator
 
@@ -48,8 +70,9 @@ class DBQueries:
 
     def __init__(self, error_handler: ErrorHandler):
         self.error_handler = error_handler
+        self.logger = logger or logging.getLogger(__name__)
 
-    @db_operation(context="DB_SELECT", error_handler=None)
+    @db_operation(context="DB_SELECT")
     async def run_select(
         self,
         db: AsyncSession,
@@ -72,14 +95,14 @@ class DBQueries:
             raise AppException("Пустой результат запроса", status_code=404)
         return data
 
-    @db_operation(context="DB_UPDATE", error_handler=None)
+    @db_operation(context="DB_UPDATE")
     async def run_update(self, db: AsyncSession, query: str, params: dict | None = None, commit: bool = True):
         result = await db.execute(text(query), params or {})
         if commit:
             await db.commit()
         return result.rowcount
 
-    @db_operation(context="DB_INSERT", error_handler=None)
+    @db_operation(context="DB_INSERT")
     async def run_insert(self, db: AsyncSession, query: str, params: dict | None = None, commit: bool = True, return_id: bool = False):
         result = await db.execute(text(query), params or {})
         if commit:
@@ -89,7 +112,7 @@ class DBQueries:
             return inserted_id if inserted_id is not None else 0
         return result.rowcount
 
-    @db_operation(context="DB_DELETE", error_handler=None)
+    @db_operation(context="DB_DELETE")
     async def run_delete(self, db: AsyncSession, query: str, params: dict | None = None, commit: bool = True):
         result = await db.execute(text(query), params or {})
         if commit:

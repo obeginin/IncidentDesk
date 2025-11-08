@@ -1,13 +1,16 @@
 
 class AppException(Exception):
     """Базовое исключение приложения с HTTP статусом"""
-    def __init__(self, message: str, status_code: int = 400, field: str | None = None):
+    def __init__(self, message: str, status_code: int = 400, field: str | None = None, original_exc: Exception | None = None):
+        super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.field = field
-        super().__init__(message)
+        self.original_exc = original_exc
 
     def __str__(self):
+        if self.original_exc:
+            return f"[{self.status_code}] {self.message} — {self.original_exc!r}"
         return f"[{self.status_code}] {self.message}"
 
 # Примеры стандартных ошибок для удобства
