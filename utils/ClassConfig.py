@@ -1,6 +1,8 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, computed_field
+from utils.ClassLogger import LoggerConfig
+import logging
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -34,7 +36,6 @@ class Settings(BaseSettings):
     DB_POOL_RECYCLE: int = 1800
 
     @computed_field
-    @property
     def ASYNC_DB_URL(self) -> str:
         'Ассинхронное подключение'
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -45,12 +46,12 @@ class Settings(BaseSettings):
     def DB_URL(self) -> str:
         return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"'''
 
-    # Logging
+    # --- Logging ---
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "app.log"
-
     PROJECT_ROOT: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent)
     LOG_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "logs")
+
 
     API_PREFIX: str = "/api/v1"
     TIMEZONE: str = "Europe/Moscow"
@@ -58,7 +59,7 @@ class Settings(BaseSettings):
 
     def create_dirs(self):
         """Создание директорий после инициализации"""
-        for folder in [self.LOG_DIR, self.UPLOADS_DIR]:
+        for folder in [self.LOG_DIR]:
             folder.mkdir(parents=True, exist_ok=True)
 
     def dump(self):
@@ -74,3 +75,15 @@ class Settings(BaseSettings):
         }
 
 settings = Settings()
+settings.create_dirs()
+
+# --- Инициализация логирования ---
+logger_config = LoggerConfig(
+    log_dir=settings.LOG_DIR,
+    log_file=settings.LOG_FILE,
+    log_level=settings.LOG_LEVEL,
+    console_output=True,
+    use_json=False,
+)
+
+

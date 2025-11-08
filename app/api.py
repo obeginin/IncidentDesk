@@ -3,15 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from typing import List
 from utils.ClassSQL import DBQueries
-from utils.ClassException import ErrorHandler
+from utils.ClassError import ErrorHandler
 from app import schemas as incident_schemas
-from app import models as incident_models
+
 from app import crud as incident_crud
+from utils.ClassConfig import logger_config
 
-from utils.ClassException import ErrorHandler
-from app.core import logger_config
-
-logger = logger_config.get_logger(__name__)  # => app.api.incidents
+logger = logger_config.get_logger(__name__)
 error_handler = ErrorHandler(logger)
 queries = DBQueries(error_handler)
 
@@ -30,7 +28,7 @@ async def list_incidents(status: str | None = None, db: AsyncSession = Depends(g
     logger.info(f"Запущен ендпоинт: list_incidents")
     return await service.list_incidents(db, status)
 
-@router.patch("/{incident_id}/status", response_model=int)
+@router.patch("/{incident_id}/status", response_model=incident_schemas.IncidentOut)
 async def update_incident_status(incident_id: int, data: incident_schemas.IncidentUpdateStatus, db: AsyncSession = Depends(get_db)):
     logger.info(f"Запущен ендпоинт: update_incident_status")
     return await service.update_status(db, incident_id, data.status)
