@@ -23,42 +23,23 @@ def db_operation(context: str = "DB"):
             except IntegrityError as e:
                 if db:
                     await db.rollback()
-                # логируем полную трассировку
                 if handler:
                     await handler.handle_client_error(e, context=context)
-                else:
-                    self.logger.exception(f"[{context}] IntegrityError")
-                raise AppException(
-                    "Ошибка работы с базой данных (конфликт данных)",
-                    status_code=400,
-                    original_exc=e
-                )
+                raise AppException("Ошибка работы с базой данных (конфликт данных)", status_code=400, original_exc=e)
 
             except SQLAlchemyError as e:
                 if db:
                     await db.rollback()
                 if handler:
                     await handler.handle_client_error(e, context=context)
-                else:
-                    self.logger.exception(f"[{context}] SQLAlchemyError")
-                raise AppException(
-                    "Ошибка работы с базой данных",
-                    status_code=500,
-                    original_exc=e
-                )
+                raise AppException("Ошибка работы с базой данных", status_code=500, original_exc=e)
 
             except Exception as e:
                 if db:
                     await db.rollback()
                 if handler:
                     await handler.handle_client_error(e, context=context)
-                else:
-                    self.logger.exception(f"[{context}] UnexpectedError")
-                raise AppException(
-                    "Внутренняя ошибка приложения",
-                    status_code=500,
-                    original_exc=e
-                )
+                raise AppException("Внутренняя ошибка приложения", status_code=500, original_exc=e)
 
         return wrapper
     return decorator

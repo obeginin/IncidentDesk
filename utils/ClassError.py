@@ -7,6 +7,7 @@ class AppException(Exception):
         self.status_code = status_code
         self.field = field
         self.original_exc = original_exc
+        super().__init__(message)
 
     def __str__(self):
         if self.original_exc:

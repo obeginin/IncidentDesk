@@ -4,6 +4,7 @@ from utils.ClassConfig import settings
 import asyncio
 from sqlalchemy import text
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,6 @@ engine = create_async_engine(
     settings.ASYNC_DB_URL,
     echo=(settings.DEBUG is True),          # логирует все SQL-запросы в stdout. (если True)
     pool_size=settings.DB_POOL_SIZE,        # Количество соединений в пуле, которое SQLAlchemy держит открытыми одновременно
-    max_overflow=settings.DB_MAX_OVERFLOW,  # Сколько дополнительных соединений можно создать сверх pool_size при пиковых нагрузках
-    pool_timeout=settings.DB_POOL_TIMEOUT,  # Время ожидания свободного соединения из пула
-    pool_recycle=settings.DB_POOL_RECYCLE,  # Время жизни соединения в секундах, после которого оно будет закрыто и заменено новым.
     pool_pre_ping=True,                     # проверка соединения перед использованием
     future=True,                            # новый SQLAlchemy 2.0 API
 )
@@ -61,7 +59,14 @@ async def check_db_connection(engine: AsyncEngine, name: str, retries: int = 5, 
                 raise
 
 
-async def init_db():
+async def run_sql_file(engine: AsyncEngine, sql_file_path: str):
     """Создание таблиц при старте приложения"""
+    sql_path = Path(sql_file_path)
+    if not sql_path.exists():
+        raise FileNotFoundError(f"Файл {sql_file_path} не найден")
+
+    sql_content = sql_path.read_text()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(sql_content))
+    logger.info(f"✅ SQL из {sql_file_path} выполнен успешно")
+

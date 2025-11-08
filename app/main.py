@@ -4,26 +4,24 @@ import logging
 import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.ClassLogger import LoggerConfig
+
 from utils.ClassConfig import settings
-from utils.Database import engine, get_db, check_db_connection, init_db
+from app.database import engine, get_db, check_db_connection, run_sql_file
+from app.api import router as incidents_router
+from app.core import logger_config
 from utils.ClassException import ErrorHandler
 from utils.ClassSQL import DBQueries
 
-# инициализируем основное логирование
-logger_config = LoggerConfig(log_dir=settings.LOG_DIR, log_file='app.log', log_level=settings.LOG_LEVEL, console_output=True, use_json=False)
+from app.models import Incident
 logger_config.setup_logger()
 logger = logger_config.get_logger(__name__)
-logger.info("Основной файл main")
+logger.info("Запуск приложения")
+# создаём обработчики, завязанные на этот логгер
+error_handler = ErrorHandler(logger)
+queries = DBQueries(error_handler)
 
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION)
 start_time = datetime.datetime.utcnow()
-
-# Инициализация единого обработчика ошибок
-error_handler = ErrorHandler(logger)
-
-# Создаём экземпляр для работы с БД и подключаем обработчик ошибок
-queries = DBQueries(error_handler)
 
 
 # Глобальная обработка ошибок FastAPI
@@ -32,6 +30,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Централизованный обработчик всех исключений в приложении"""
     return await error_handler.handle_http_exception(request, exc)
 
+app.include_router(incidents_router, prefix=settings.API_PREFIX)
 
 async def lifestile_task(logger: logging.Logger, interval: int = 300):
     '''Проверка жизни программы'''
@@ -45,7 +44,8 @@ async def startup_event():
     logger.info("🚀 Проверка подключений к базам данных...")
     await check_db_connection(engine=engine, name=settings.DB_NAME)
     if settings.ENVIRONMENT == "development":
-        await init_db()     # создаём таблицы после успешного подключения
+        await run_sql_file(engine, "app/sql/create_table.sql")     # создаём таблицы после успешного подключения
+        logger.info("Таблицы успешно созданы из SQL файла")
     asyncio.create_task(lifestile_task(logger=logger, interval=300))    # Запускаем фоновую таску
 
 

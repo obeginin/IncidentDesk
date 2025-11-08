@@ -88,7 +88,7 @@ class ErrorHandler:
             status_code = 422
             self.logger.warning(f"[{request.url}] {exc.errors()}")
         else:
-            # Непредвиденная ошибка: показываем общую фразу клиенту, логируем полный traceback
+            self.logger.exception(f"[{request.url}] Непредвиденная ошибка: {exc}")
             info = ErrorInfo(
                 "Внутренняя ошибка сервера",
                 "InternalServerError",
@@ -96,10 +96,10 @@ class ErrorHandler:
                 str(request.url)
             )
             status_code = 500
-            self.logger.exception(f"[{request.url}] {exc}")  # полная трассировка для разработчика
 
         # Логируем для статистики/уровня info
         getattr(self.logger, info.level, self.logger.error)(f"[{info.context}] {info.message}")
+
 
         return JSONResponse(
             status_code=status_code,

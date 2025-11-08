@@ -13,7 +13,7 @@ class JsonFormatter(logging.Formatter):
         super().__init__(fmt=None, datefmt=None)
 
     def format(self, record: logging.LogRecord) -> str:
-        timestamp = datetime.datetime.now().isoformat(timespec='milliseconds')  # Используем текущее время с миллисекундами
+        timestamp = datetime.now().isoformat(timespec='milliseconds')  # Используем текущее время с миллисекундами
 
         log_record = {
             "timestamp": timestamp,
@@ -120,7 +120,7 @@ class LoggerConfig:
 
     def get_logger(self, name: str | None = None) -> logging.Logger:
         """Именованный логгер (по умолчанию __name__)"""
-        logger = logging.getLogger(name or self.app_logger_name)
+        logger = logging.getLogger(name or __name__)
         #logger.propagate = False  # избегаем дублирования в root
         return logger
 
