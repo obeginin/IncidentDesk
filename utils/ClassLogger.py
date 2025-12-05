@@ -19,8 +19,23 @@ class JsonFormatter(logging.Formatter):
             "timestamp": timestamp,
             "level": record.levelname,
             "module": record.name,
-            "message": record.getMessage(),
+
         }
+
+        message = record.getMessage()
+        # Проверяем, не JSON ли это
+
+
+        try:
+            if message.strip().startswith('{') and message.strip().endswith('}'):
+                data = json.loads(message)
+                # Если успешно - добавляем все поля из JSON
+                log_record.update(data)
+            else:
+                log_record["message"] = message
+        except:
+            # Если ошибка парсинга - оставляем как строку
+            log_record["message"] = message
 
         # Добавляем trace_id если есть
         trace_id = getattr(record, "trace_id", None)
@@ -43,8 +58,11 @@ class SmartTimedRotatingFileHandler(TimedRotatingFileHandler):
         self.suffix = "%Y-%m-%d"
 
     def rotation_filename(self, default_name: str) -> str:
-        date_str = datetime.now().strftime(self.suffix)
-        return f"{self.baseFilenameNoExt}.{date_str}{self.ext}"
+        base, ext = self.baseFilenameNoExt, self.ext
+        date_str = default_name.split(".")[-1]  # "2025-12-02"
+        return f"{base}.{date_str}{ext}"
+        # date_str = datetime.now().strftime(self.suffix)
+        # return f"{self.baseFilenameNoExt}.{date_str}{self.ext}"
 
 class LoggerConfig:
     """Универсальный класс для настройки логирования"""
@@ -81,14 +99,17 @@ class LoggerConfig:
             print(f"Не удалось создать директорию для логов {self.log_dir}: {e}")
 
     def _resolve_log_dir(self, log_dir: str | Path | None = None) -> Path:
-        'определям путь к директории для логов'
-        project_root = Path(__file__).resolve().parent.parent
+        '''определям путь к директории для логов'''
+        project_root = Path.cwd() # корень проекта
+        # print("__file__", __file__)
+        # print("project_root", Path(__file__).resolve().parent.parent)
+        # print()
         if log_dir is None:
-            return project_root / "logs"
+            return project_root / "logs"    # если не передан, то берет по умолчанию папку проекта/ + logs
         elif Path(log_dir).is_absolute():
-            return Path(log_dir)
+            return Path(log_dir)            # если передан асолютный путь, то берет его
         else:
-            return project_root / log_dir
+            return project_root / log_dir   # если передана папку, то берет корень проекта + папка
 
     def setup_logger(self) -> None:
         """Настройка логирования с защитой от повторной инициализации"""
@@ -116,7 +137,7 @@ class LoggerConfig:
             for h in handlers:
                 root.addHandler(h)
             root.setLevel(getattr(logging, self.log_level, logging.INFO))
-            logging.info(f"Логирование инициализировано. Запущен файл: {self.app_logger_name} Лог: {log_path}")
+            logging.info(f"Логирование инициализировано. Лог файл: {log_path}")
 
     def get_logger(self, name: str | None = None) -> logging.Logger:
         """Именованный логгер (по умолчанию __name__)"""
